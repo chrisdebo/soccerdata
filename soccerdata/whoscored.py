@@ -86,24 +86,29 @@ def _parse_url(url: str) -> dict:
     -------
     dict
     """
-    patt = (
-        r"^(?:https:\/\/www.whoscored.com)?\/"
-        + r"(?:Regions\/(\d+)\/)?"
-        + r"(?:Tournaments\/(\d+)\/)?"
-        + r"(?:Seasons\/(\d+)\/)?"
-        + r"(?:Stages\/(\d+)\/)?"
-        + r"(?:Matches\/(\d+)\/)?"
+    patt = re.compile(
+        r"^(?:https?:\/\/(?:www\.)?whoscored\.com)?\/"        
+        r"(?:regions\/(?P<region_id>\d+)\/)?"                 
+        r"(?:tournaments\/(?P<league_id>\d+)\/)?"             
+        r"(?:seasons\/(?P<season_id>\d+)\/?)?"                
+        r"(?:(?:stages\/(?P<stage_id>\d+))|"                  
+        r"(?:matches\/(?P<match_id>\d+)))?"                   
+        r"(?:\/[^\?]*)?$",
+        re.IGNORECASE
     )
-    matches = re.search(patt, url)
-    if matches:
-        return {
-            "region_id": matches.group(1),
-            "league_id": matches.group(2),
-            "season_id": matches.group(3),
-            "stage_id": matches.group(4),
-            "match_id": matches.group(5),
-        }
-    raise ValueError(f"Could not parse URL: {url}")
+
+    matches = patt.match(url)
+
+    if not matches:
+        raise ValueError(f"Could not parse URL: {url}")
+
+    return {
+        "region_id": matches.group(1),
+        "league_id": matches.group(2),
+        "season_id": matches.group(3),
+        "stage_id": matches.group(4),
+        "match_id": matches.group(5),
+    }
 
 
 class WhoScored(BaseSeleniumReader):
@@ -291,6 +296,26 @@ class WhoScored(BaseSeleniumReader):
 
             # get default season stage
             fixtures_url = tree.xpath("//a[text()='Fixtures']/@href")[0]
+            
+            
+
+            # Debug-Ausgabe 1: Was liefert uns das XPath für fixtures_url?
+            print("DEBUG: Extracted fixtures_url =", fixtures_url)
+
+            try:
+                parsed = _parse_url(fixtures_url)
+                print("DEBUG: parse_url output =", parsed)  # Zeigt alle Gruppen: region_id, league_id, season_id, stage_id, match_id
+                stage_id = parsed["stage_id"]
+            except ValueError as e:
+                # Falls das Regex nicht matched
+                print("DEBUG: parse_url raised ValueError! URL =", fixtures_url)
+                print("DEBUG:", e)
+                stage_id = None
+
+            print("DEBUG: final stage_id =", stage_id)
+            
+            
+
             stage_id = _parse_url(fixtures_url)["stage_id"]
             season_stages.append(
                 {
