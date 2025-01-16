@@ -86,24 +86,29 @@ def _parse_url(url: str) -> dict:
     -------
     dict
     """
-    patt = (
-        r"^(?:https:\/\/www.whoscored.com)?\/"
-        + r"(?:Regions\/(\d+)\/)?"
-        + r"(?:Tournaments\/(\d+)\/)?"
-        + r"(?:Seasons\/(\d+)\/)?"
-        + r"(?:Stages\/(\d+)\/)?"
-        + r"(?:Matches\/(\d+)\/)?"
+    patt = re.compile(
+        r"^(?:https?:\/\/(?:www\.)?whoscored\.com)?\/"        
+        r"(?:regions\/(?P<region_id>\d+)\/)?"                 
+        r"(?:tournaments\/(?P<league_id>\d+)\/)?"             
+        r"(?:seasons\/(?P<season_id>\d+)\/?)?"                
+        r"(?:(?:stages\/(?P<stage_id>\d+))|"                  
+        r"(?:matches\/(?P<match_id>\d+)))?"                   
+        r"(?:\/[^\?]*)?$",
+        re.IGNORECASE
     )
-    matches = re.search(patt, url)
-    if matches:
-        return {
-            "region_id": matches.group(1),
-            "league_id": matches.group(2),
-            "season_id": matches.group(3),
-            "stage_id": matches.group(4),
-            "match_id": matches.group(5),
-        }
-    raise ValueError(f"Could not parse URL: {url}")
+
+    matches = patt.match(url)
+
+    if not matches:
+        raise ValueError(f"Could not parse URL: {url}")
+
+    return {
+        "region_id": matches.group(1),
+        "league_id": matches.group(2),
+        "season_id": matches.group(3),
+        "stage_id": matches.group(4),
+        "match_id": matches.group(5),
+    }
 
 
 class WhoScored(BaseSeleniumReader):
@@ -290,7 +295,7 @@ class WhoScored(BaseSeleniumReader):
             tree = html.parse(reader)
 
             # get default season stage
-            fixtures_url = tree.xpath("//a[text()='Fixtures']/@href")[0]
+            fixtures_url = tree.xpath("//a[text()='Fixtures']/@href")[0]        
             stage_id = _parse_url(fixtures_url)["stage_id"]
             season_stages.append(
                 {
